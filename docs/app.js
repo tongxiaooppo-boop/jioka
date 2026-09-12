@@ -843,6 +843,8 @@ async function submitComment() {
   if (!content) { toast('留言不能為空'); return; }
   try {
     await api('addComment', { eventId: State.eventId, optionId: $('#cmt-option').value, content: content });
+    const input = $('#cmt-input');
+    if (input) input.value = ''; // 先清空，避免重繪時被還原
     refreshEvent(true);
   } catch (e) { toast(e.message, 'err'); }
 }
