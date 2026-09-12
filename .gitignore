@@ -1,0 +1,10 @@
+# OS / 編輯器雜物
+Thumbs.db
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# clasp（可選工具）本地設定
+.clasp.json
+node_modules/
