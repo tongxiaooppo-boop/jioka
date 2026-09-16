@@ -5,6 +5,8 @@
 
 ![UI 示意稿](jioka-ui-mockup.png)
 
+> 📘 這份 README 的部署教學 + 使用手冊，也有一份可跟著操作、含目錄導覽的網頁版：[`docs/guide.html`](docs/guide.html)（部署到 GitHub Pages 後即可透過 `.../guide.html` 開啟）。
+
 ## ✨ 功能特色
 
 - 🗓️ **月曆投票**：候選日期直接畫在月曆上，點日期選時段；票數用色階呈現（白→淺黃→橘），全員 OK 的日期會蓋上星芒爆炸圖 ★

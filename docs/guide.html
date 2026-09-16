@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>揪咖部署手冊</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎉</text></svg>">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #FFF8E7;
+    --surface: #FFFFFF;
+    --surface-soft: #FBF3DE;
+    --ink: #1E1B14;
+    --ink-soft: #6b6250;
+    --ink-faint: #9a927c;
+    --border: #1E1B14;
+    --border-soft: #e4d9bd;
+    --yellow: #FFD23F;
+    --yellow-ink: #4a3c00;
+    --pink: #FF6F91;
+    --mint: #1f8f82;
+    --mint-bg: #dff3ef;
+    --code-bg: #f2ead4;
+    --code-ink: #4a3c1c;
+    --shadow: rgba(30, 27, 20, 0.18);
+    --danger: #c23b3b;
+    --danger-bg: #fbe6e6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1a170f;
+      --surface: #242019;
+      --surface-soft: #2b2519;
+      --ink: #f3ecd9;
+      --ink-soft: #c6bda3;
+      --ink-faint: #8d846c;
+      --border: #f3ecd9;
+      --border-soft: #3c3524;
+      --yellow: #FFD23F;
+      --yellow-ink: #2a2200;
+      --pink: #ff8aa4;
+      --mint: #5fd6c6;
+      --mint-bg: #163531;
+      --code-bg: #2c2718;
+      --code-ink: #ecd9a8;
+      --shadow: rgba(0, 0, 0, 0.45);
+      --danger: #ff8a8a;
+      --danger-bg: #3a1f1f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a170f;
+    --surface: #242019;
+    --surface-soft: #2b2519;
+    --ink: #f3ecd9;
+    --ink-soft: #c6bda3;
+    --ink-faint: #8d846c;
+    --border: #f3ecd9;
+    --border-soft: #3c3524;
+    --yellow: #FFD23F;
+    --yellow-ink: #2a2200;
+    --pink: #ff8aa4;
+    --mint: #5fd6c6;
+    --mint-bg: #163531;
+    --code-bg: #2c2718;
+    --code-ink: #ecd9a8;
+    --shadow: rgba(0, 0, 0, 0.45);
+    --danger: #ff8a8a;
+    --danger-bg: #3a1f1f;
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Noto Sans TC', 'PingFang TC', sans-serif;
+    line-height: 1.7;
+    padding-inline: 20px;
+    margin: 0;
+  }
+  a { color: inherit; }
+  h1, h2, h3 { font-family: 'Baloo 2', 'Noto Sans TC', sans-serif; text-wrap: balance; letter-spacing: 0.2px; }
+  code, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 36px;
+    padding-block: 28px 80px;
+  }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+  }
+
+  /* ---- masthead ---- */
+  .masthead {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 22px;
+    border-bottom: 3px solid var(--border);
+    margin-bottom: 6px;
+  }
+  .masthead .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--yellow-ink);
+    background: var(--yellow);
+    border: 2px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 12px;
+    width: fit-content;
+    margin-bottom: 10px;
+  }
+  .masthead h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; margin: 0; }
+  .masthead .tagline { color: var(--ink-soft); font-size: 15px; margin-top: 6px; max-width: 62ch; }
+  .masthead .meta { text-align: right; font-size: 13px; color: var(--ink-faint); }
+  .masthead .meta .mono { display: block; color: var(--ink-soft); margin-top: 2px; }
+
+  /* ---- nav ---- */
+  nav.toc {
+    align-self: start;
+    position: sticky;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 14px;
+  }
+  nav.toc .group-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 16px 0 6px;
+  }
+  nav.toc .group-label:first-child { margin-top: 0; }
+  nav.toc a {
+    text-decoration: none;
+    color: var(--ink-soft);
+    padding: 7px 10px;
+    border-radius: 8px;
+    border-left: 3px solid transparent;
+  }
+  nav.toc a:hover { background: var(--surface-soft); color: var(--ink); }
+  nav.toc a.current { color: var(--ink); font-weight: 700; border-left-color: var(--pink); background: var(--surface-soft); }
+
+  main { min-width: 0; display: flex; flex-direction: column; gap: 40px; }
+
+  .callout {
+    border: 2px solid var(--border);
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: 3px 3px 0 var(--shadow);
+    font-size: 14.5px;
+  }
+  .callout.note { background: var(--mint-bg); border-color: var(--mint); }
+  .callout strong.tag {
+    display: inline-block;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  section { scroll-margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+  section > h2 {
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+  }
+  section > h2 .num {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--yellow-ink);
+    background: var(--yellow);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    min-width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  section > p.lead { color: var(--ink-soft); margin: 0; max-width: 68ch; font-size: 15px; }
+
+  .step {
+    border: 2px solid var(--border);
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: 4px 4px 0 var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .step h3 {
+    margin: 0;
+    font-size: 17px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .step h3 .letter { color: var(--pink); font-family: 'Baloo 2', sans-serif; font-weight: 800; }
+  .step ol, .step ul { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+  .step ol { list-style: decimal; }
+  .step .sub { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-soft); }
+
+  code.inline, .kv code {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 0.92em;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    margin: 0;
+  }
+
+  .field-note {
+    border-left: 3px solid var(--yellow);
+    padding: 4px 0 4px 12px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+  .field-note.warn { border-left-color: var(--danger); }
+
+  /* checklist */
+  .checklist { display: flex; flex-direction: column; gap: 0; border: 2px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); box-shadow: 4px 4px 0 var(--shadow); }
+  .checklist .item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 14.5px;
+  }
+  .checklist .item:last-child { border-bottom: none; }
+  .checklist .box {
+    flex: none; width: 20px; height: 20px; margin-top: 2px;
+    border: 2px solid var(--border); border-radius: 5px; background: var(--surface-soft);
+  }
+
+  /* role cards */
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .role-card {
+    border: 2px solid var(--border); border-radius: 16px; padding: 16px 18px; background: var(--surface);
+    box-shadow: 4px 4px 0 var(--shadow);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .role-card .role-title { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .role-card ol, .role-card ul { margin: 0; padding-left: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .role-card.owner { border-color: var(--pink); }
+  .role-card.owner .role-title { color: var(--pink); }
+  .role-card.coadmin .role-title { color: var(--mint); }
+
+  /* data model table */
+  .table-wrap { overflow-x: auto; border: 2px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: 4px 4px 0 var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 560px; }
+  thead th {
+    text-align: left; font-family: 'Baloo 2', sans-serif; font-weight: 700;
+    background: var(--surface-soft); padding: 10px 14px; border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td { padding: 9px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { font-family: 'JetBrains Mono', monospace; font-weight: 600; white-space: nowrap; }
+  .pill { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1.5px solid currentColor; }
+  .pill.open { color: var(--mint); }
+  .pill.owner { color: var(--pink); }
+
+  /* faq */
+  details {
+    border: 2px solid var(--border); border-radius: 12px; background: var(--surface);
+    padding: 12px 16px; box-shadow: 3px 3px 0 var(--shadow);
+  }
+  details + details { margin-top: 10px; }
+  details summary {
+    cursor: pointer; font-weight: 700; font-family: 'Baloo 2', sans-serif; font-size: 15px;
+    list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after { content: '+'; font-size: 20px; color: var(--pink); flex: none; }
+  details[open] summary::after { content: '–'; }
+  details p { margin: 10px 0 0; font-size: 14px; color: var(--ink-soft); }
+
+  .kv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 14px; }
+  .kv { border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--surface); box-shadow: 3px 3px 0 var(--shadow); }
+  .kv .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); font-weight: 700; margin-bottom: 4px; }
+
+  footer.page-foot {
+    grid-column: 1 / -1;
+    border-top: 2px solid var(--border-soft);
+    padding-top: 18px;
+    font-size: 13px;
+    color: var(--ink-faint);
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    section { animation: rise .5s ease both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px);} to { opacity:1; transform:none; } }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="masthead">
+    <div>
+      <span class="eyebrow">★ 部署 + 使用手冊</span>
+      <h1>揪咖 JioKa 上線指南</h1>
+      <p class="tagline">從 0 到「連結丟到 LINE 群組」的完整流程 —— 一個 Google 帳號、一個 GitHub 帳號，全部落在免費額度內，約 15 分鐘。</p>
+    </div>
+    <div class="meta">
+      內容取自專案 <span class="mono">README.md</span>，重新整理為可跟著操作的步驟頁<br>
+      產品需求書另見 <span class="mono">clinepass-prd.md</span>
+    </div>
+  </div>
+
+  <nav class="toc" aria-label="目錄">
+    <span class="group-label">開始之前</span>
+    <a href="#before" data-nav>需要準備什麼</a>
+    <span class="group-label">部署（一次性）</span>
+    <a href="#step-a" data-nav>A · Google OAuth</a>
+    <a href="#step-b" data-nav>B · Apps Script 後端</a>
+    <a href="#step-c" data-nav>C · 設定前端</a>
+    <a href="#step-d" data-nav>D · GitHub Pages</a>
+    <a href="#verify" data-nav>驗收測試清單</a>
+    <span class="group-label">使用手冊</span>
+    <a href="#roles" data-nav>主揪 / 參與者 / 次管理者</a>
+    <a href="#data-model" data-nav>資料放在哪五張表</a>
+    <span class="group-label">疑難排解</span>
+    <a href="#faq" data-nav>常見問題</a>
+    <a href="#privacy" data-nav>隱私與安全</a>
+  </nav>
+
+  <main>
+    <section id="before">
+      <h2><span class="num">·</span>開始之前</h2>
+      <p class="lead">整個服務不自建伺服器、不自建資料庫：前端是純靜態網頁，後端是 Google Apps Script，資料庫就是一份 Google 試算表。你只需要準備：</p>
+      <div class="checklist">
+        <div class="item"><span class="box"></span>一個 <strong>Google 帳號</strong>（拿來建 OAuth 憑證、Apps Script 後端、還有你自己的資料試算表）</div>
+        <div class="item"><span class="box"></span>一個 <strong>GitHub 帳號</strong>（放前端靜態網頁，用 GitHub Pages 發佈）</div>
+        <div class="item"><span class="box"></span>約 <strong>15 分鐘</strong>不被打斷的時間 —— 步驟 A～D 一次做完最順</div>
+      </div>
+      <div class="callout note">
+        <strong class="tag">✅ 目前狀態</strong>
+        試算表還沒建立。它不是手動在 Google 試算表首頁新增的，而是步驟 B 執行 <code class="inline">setup()</code> 時由程式自動建立 —— 順序不能跳過，Client ID 要先拿到才能填進 <code class="inline">Code.gs</code>。
+      </div>
+    </section>
+
+    <section id="step-a">
+      <h2><span class="num">A</span>申請 Google OAuth Client ID</h2>
+      <p class="lead">用來讓參與者「用 Google 帳號登入」。只取 Email 與顯示名稱，不需要審核就能給少數人測試用。</p>
+      <div class="step">
+        <ol>
+          <li>前往 <span class="mono">Google Cloud Console</span> → 建立新專案（名稱隨意，例如 <code class="inline">jioka</code>）</li>
+          <li>左側選單「API 和服務」→「<strong>OAuth 同意畫面</strong>」
+            <div class="sub">
+              · 使用者類型選「External」→ 建立<br>
+              · 填應用程式名稱（例如「揪咖 JioKa」）、支援 Email、開發人員聯絡 Email<br>
+              · 其餘頁面直接「儲存並繼續」到底：不用加 scopes、不用送審。測試階段只有你加入的測試使用者能登入
+            </div>
+          </li>
+          <li>「憑證」→「建立憑證」→「<strong>OAuth 用戶端 ID</strong>」
+            <div class="sub">
+              · 應用程式類型：網頁應用程式<br>
+              · 已授權的 JavaScript 來源加入：<code class="inline">https://&lt;你的帳號&gt;.github.io</code>（不要加結尾斜線）與（可選）<code class="inline">http://localhost:8000</code>
+            </div>
+          </li>
+          <li>建立後複製「用戶端 ID」，格式像 <code class="inline">123456789-xxxx.apps.googleusercontent.com</code> —— 步驟 B、C 都要用到</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="step-b">
+      <h2><span class="num">B</span>建立 Apps Script 後端（含試算表）</h2>
+      <p class="lead">這一步同時把「後端 API」跟「資料庫試算表」一起生出來 —— 試算表是 <code class="inline">setup()</code> 執行時自動建立的，不用另外手動開一份。</p>
+      <div class="step">
+        <ol>
+          <li>前往 <span class="mono">Google Apps Script</span> →「新專案」</li>
+          <li>把整份 <code class="inline">gas/Code.gs</code> 貼上、取代編輯器裡的預設內容</li>
+          <li>把檔案開頭的 Client ID 換成步驟 A 拿到的值：
+            <pre>const GOOGLE_CLIENT_ID = '123456789-xxxx.apps.googleusercontent.com';</pre>
+          </li>
+          <li>建議：左側「專案設定」勾選「顯示 appsscript.json」，把 <code class="inline">gas/appsscript.json</code> 內容貼上覆蓋（設定台灣時區與最小權限範圍）</li>
+          <li>函式下拉選單選 <code class="inline">setup</code> → 按「執行」
+            <div class="sub">
+              · 第一次執行會要求授權：選自己的帳號 →（若跳出「Google 尚未驗證這個應用程式」）點「進階」→「前往○○（不安全）」→「允許」，這是你自己的腳本呼叫你自己的試算表，正常現象<br>
+              · 執行成功後看「執行記錄」，會印出 <code class="inline">✅ 初始化完成！試算表網址：https://...</code><br>
+              · 這份試算表就是完整的資料庫（Events / Options / Votes / Comments / Participants 五張表），建議打開加書籤 —— 之後查原始資料、救回誤刪的活動都靠它
+            </div>
+          </li>
+          <li>部署：右上角「部署」→「新增部署作業」
+            <div class="sub">
+              · 類型選「網路應用程式」，執行身分「我（自己的帳號）」，誰可以存取「<strong>所有人</strong>」<br>
+              · 部署後複製「網路應用程式網址」（結尾是 <code class="inline">/exec</code>），步驟 C 要用
+            </div>
+          </li>
+        </ol>
+        <div class="field-note">修改 <code class="inline">Code.gs</code> 之後前端沒反應？<code class="inline">/exec</code> 網址是「部署快照」，改完程式要回「管理部署作業」選「新版本」重新部署才會生效。</div>
+      </div>
+    </section>
+
+    <section id="step-c">
+      <h2><span class="num">C</span>設定前端</h2>
+      <p class="lead">前端無框架、無建置流程，唯一要改的就是這個設定檔。</p>
+      <div class="step">
+        <p style="margin:0;font-size:14px">編輯 <code class="inline">docs/config.js</code>，填入兩個值：</p>
+        <pre>const JIOKA_CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycb.../exec',   // 步驟 B 的網路應用程式網址
+  GOOGLE_CLIENT_ID: '123456789-xxxx.apps.googleusercontent.com',   // 步驟 A 的 Client ID
+  POLL_INTERVAL: 10000,
+};</pre>
+      </div>
+    </section>
+
+    <section id="step-d">
+      <h2><span class="num">D</span>部署到 GitHub Pages</h2>
+      <div class="step">
+        <ol>
+          <li>把整個專案推到 GitHub（或用 GitHub Desktop 發佈）</li>
+          <li>repo 頁面 →「Settings」→「Pages」：Source 選「Deploy from a branch」，Branch 選 <code class="inline">main</code>，資料夾選「<code class="inline">/docs</code>」→ Save</li>
+          <li>等 1～2 分鐘，開啟 <code class="inline">https://&lt;你的帳號&gt;.github.io/jioka/</code>（repo 名稱不是 <code class="inline">jioka</code> 的話路徑會不同）</li>
+        </ol>
+        <div class="field-note warn">如果實際網域跟步驟 A 填的不一樣（例如自訂網域），記得回 Cloud Console 把正確網域補進「已授權的 JavaScript 來源」，不然登入按鈕會失敗。</div>
+      </div>
+    </section>
+
+    <section id="verify">
+      <h2><span class="num">✓</span>驗收測試清單</h2>
+      <p class="lead">部署完照著走一遍，確認整條鏈路通了再分享出去。</p>
+      <div class="checklist">
+        <div class="item"><span class="box"></span>開啟前端網址 → 點「發起揪咖」→ 出現 Google 登入按鈕 → 登入成功</div>
+        <div class="item"><span class="box"></span>建立活動：填名稱、選幾個日期＋時段、加一個地點 → 送出 → 看到分享連結 Modal</div>
+        <div class="item"><span class="box"></span>打開試算表：Events / Options / Participants 各多了一筆資料</div>
+        <div class="item"><span class="box"></span>用<strong>無痕視窗</strong>開活動連結，登入<strong>另一個 Google 帳號</strong> → 設暱稱 → 勾日期/地點 → 留言</div>
+        <div class="item"><span class="box"></span>回原視窗：10 秒內統計自動更新（日期上色、地點顯示人名）</div>
+        <div class="item"><span class="box"></span>進「管理後台」：看到明細表、可刪留言、設截止時間、匯出 CSV</div>
+        <div class="item"><span class="box"></span>「標記最終方案」→ 跳到結果頁 → 看到結果卡</div>
+      </div>
+    </section>
+
+    <section id="roles">
+      <h2><span class="num">·</span>三種身分怎麼用</h2>
+      <p class="lead">誰是管理者不是設定出來的，是「誰先手」決定的：第一個對某場活動投票的人自動變主揪。</p>
+      <div class="roles">
+        <div class="role-card owner">
+          <div class="role-title">👑 主揪（發起人）</div>
+          <ol>
+            <li>首頁「🎉 發起揪咖」→ 登入 → 填名稱、類型、說明、截止時間</li>
+            <li>月曆點日期 → 勾時段（可複選/自訂，例如「傍晚」）</li>
+            <li>填地點名稱 + Map 連結（可留空），可加多個</li>
+            <li>送出後把連結丟 LINE 群組（Modal 內建 LINE 分享）</li>
+            <li>管理後台可以：看明細、刪留言/選項、延長或提前結束投票、指定次管理者、標記最終方案、下載 CSV</li>
+            <li>「🔁 再揪一次」一鍵複製類型與地點清單開新場</li>
+          </ol>
+        </div>
+        <div class="role-card">
+          <div class="role-title">🙋 參與者</div>
+          <ol>
+            <li>打開連結 → Google 登入 → 設定本場暱稱（同場不能撞名）</li>
+            <li>點候選日期勾時段；點還不是候選的日期可「提議新日期」</li>
+            <li>地點點「我可以」（可複選），也能「新增候選地點」</li>
+            <li>下拉選對整場或特定選項留言</li>
+            <li>截止前隨時回來改都可以；截止後投票與留言鎖定，結果頁仍可查看</li>
+          </ol>
+        </div>
+        <div class="role-card coadmin">
+          <div class="role-title">🤝 次管理者</div>
+          <ul>
+            <li>由主揪在後台輸入 Gmail 指定，對方用該帳號登入即自動生效</li>
+            <li>能新增候選日期/地點、刪除留言、查看投票明細</li>
+            <li>不能修改或刪除主揪已建立的選項與活動設定 —— 權限設計成「只能加、不能拆」</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="data-model">
+      <h2><span class="num">·</span>資料放在哪五張表</h2>
+      <p class="lead">沒有自建資料庫，這五張工作表就是全部的儲存層，透過 Apps Script 代理讀寫，前端不會直接碰到試算表。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>工作表</th><th>存什麼</th><th>備註</th></tr></thead>
+          <tbody>
+            <tr><td>Events</td><td>活動主檔：標題、類型、截止時間、最終方案、主/次管理者</td><td><span class="pill open">open</span> / closed / confirmed / deleted（軟刪除）</td></tr>
+            <tr><td>Options</td><td>候選日期＋時段 或 候選地點＋Map 連結</td><td>is_deleted 軟刪除</td></tr>
+            <tr><td>Votes</td><td>event_id × option_id × user_email</td><td>改票 = 刪舊列寫新列，天然冪等</td></tr>
+            <tr><td>Comments</td><td>留言，可指向特定選項</td><td>僅 <span class="pill owner">管理者</span> 可刪（軟刪除）</td></tr>
+            <tr><td>Participants</td><td>每場活動的暱稱、加入/最後訪問時間</td><td>暱稱同場唯一</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="kv-grid">
+        <div class="kv"><div class="k">規模上限</div>單場 50–100 人投票；試算表可存數萬場活動</div>
+        <div class="kv"><div class="k">併發保護</div>寫入操作用 LockService 上鎖，避免同時投票互相覆蓋</div>
+        <div class="kv"><div class="k">配額保護</div>Token 驗證結果快取 25 分鐘，版本號輕量輪詢每次僅回幾十位元組</div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <h2><span class="num">?</span>常見問題</h2>
+      <details>
+        <summary>登入按鈕沒出現，或出現錯誤？</summary>
+        <p>檢查 Cloud Console「已授權的 JavaScript 來源」是否包含你實際開啟的網域（<code class="inline">https://xxx.github.io</code>，注意大小寫與有無尾斜線）。前後端兩處的 Client ID 要填同一組。</p>
+      </details>
+      <details>
+        <summary>任何人都能用我的揪咖嗎？</summary>
+        <p>OAuth 同意畫面若是「測試」狀態，只有你加入的測試使用者能登入。要開放所有人：Cloud Console →「OAuth 同意畫面」→「發佈應用程式」；本工具只取 email/profile 基本範圍，通常無需人工審核即可發佈。</p>
+      </details>
+      <details>
+        <summary>Google ID token 過期怎麼辦？</summary>
+        <p>效期 1 小時，過期後操作會提示重新登入，再點一次登入按鈕即可，投票資料不會遺失。</p>
+      </details>
+      <details>
+        <summary>資料會不會遺失？誰看得到？</summary>
+        <p>所有資料存在你（部署者）帳號下的試算表，前端完全碰不到，只能透過 Apps Script API 存取。刪除活動/選項/留言都是軟刪除（標記不顯示），要復原可直接改試算表。</p>
+      </details>
+      <details>
+        <summary>想用指令列管理 Apps Script？</summary>
+        <p>可安裝 <code class="inline">clasp</code>：<code class="inline">npm i -g clasp</code> → <code class="inline">clasp login</code> → 在 <code class="inline">gas/</code> 目錄 <code class="inline">clasp create</code> 或 <code class="inline">clasp clone</code> → <code class="inline">clasp push</code> 推送程式，方便版控。</p>
+      </details>
+    </section>
+
+    <section id="privacy">
+      <h2><span class="num">🔒</span>隱私與安全</h2>
+      <div class="callout">
+        <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14.5px">
+          <li>登入採 Google Identity Services，只取 Email 與顯示名稱，不索取其他權限、不存密碼</li>
+          <li>前端拿到的 ID token 只存在記憶體與本機 localStorage（效期 1 小時）</li>
+          <li>後端驗證 token 時比對 <code class="inline">aud</code> 是否為本專案 Client ID，防止他站 token 混用</li>
+          <li>公開 API（getEvent）不回傳任何參與者 Email；Email 明細僅主/次管理者可見</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer class="page-foot">整理自 README.md ・ 產品需求書見 clinepass-prd.md ・ 揪得開心 🎉</footer>
+  </main>
+</div>
+
+<script>
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[data-nav]'));
+    var targets = links.map(function (a) { return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+    function onScroll() {
+      var y = window.scrollY + 120;
+      var current = targets[0];
+      targets.forEach(function (t) { if (t.offsetTop <= y) current = t; });
+      links.forEach(function (a) {
+        a.classList.toggle('current', a.getAttribute('href') === '#' + current.id);
+      });
+    }
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+</body>
+</html>

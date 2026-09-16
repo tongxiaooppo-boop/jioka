@@ -23,6 +23,17 @@ const HEADERS = {
   Participants: ['event_id', 'user_email', 'nickname', 'joined_at', 'last_visit_at'],
 };
 const EVENT_ID_LEN = 8;
+// 這些欄位存的是日期/ID/Email 這類「看起來像日期或數字」的字串，
+// 若欄位格式是「自動」，Google 試算表可能自動轉成 Date 或數字，打壞字串解析（例如 optionLabel 的 date.split('-')）
+// 所以 setup() 時一律鎖成純文字格式
+const TEXT_COLUMNS = {
+  Events: ['event_id', 'deadline', 'confirmed_date_id', 'confirmed_place_id',
+    'admin_email', 'co_admin_emails', 'created_at', 'updated_at'],
+  Options: ['option_id', 'event_id', 'date', 'created_by', 'created_at'],
+  Votes: ['event_id', 'option_id', 'user_email', 'voted_at'],
+  Comments: ['comment_id', 'event_id', 'option_id', 'user_email', 'created_at'],
+  Participants: ['event_id', 'user_email', 'joined_at', 'last_visit_at'],
+};
 
 // ===================== 初始化（手動執行一次） =====================
 /**
@@ -50,6 +61,11 @@ function setup() {
       sh.getRange(1, 1, 1, headers.length).setValues([headers]);
       sh.setFrozenRows(1);
     }
+    // 避免試算表自動把日期/ID字串轉型，整欄鎖成純文字
+    (TEXT_COLUMNS[name] || []).forEach(function (col) {
+      const idx = headers.indexOf(col);
+      if (idx >= 0) sh.getRange(1, idx + 1, sh.getMaxRows(), 1).setNumberFormat('@');
+    });
   });
   const def = ss.getSheetByName('Sheet1') || ss.getSheetByName('工作表1');
   if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
@@ -716,8 +732,10 @@ function apiUpdateEvent(params) {
   if (params.types !== undefined) {
     patch.type = (params.types || []).filter(function (t) { return EVENT_TYPES.indexOf(t) >= 0; }).join(',');
   }
-  patchEvent(eventRow, patch);
-  return { updated: true };
+  return withLock(function () {
+    patchEvent(eventRow, patch);
+    return { updated: true };
+  });
 }
 
 /** 設定/延長截止時間（主管理者）。設為未來時間時若已截止會自動重新開放。 */
@@ -727,12 +745,14 @@ function apiSetDeadline(params) {
   requireRole(eventRow, user.email, ['owner'], '只有主管理者可以調整截止時間');
   const deadline = str(params.deadline).trim();
   if (deadline && isNaN(new Date(deadline).getTime())) fail('BAD_REQUEST', '截止時間格式不正確');
-  const patch = { deadline: deadline };
-  if (str(eventRow.status) === 'closed' && (!deadline || new Date(deadline).getTime() > Date.now())) {
-    patch.status = 'open';
-  }
-  patchEvent(eventRow, patch);
-  return { updated: true, status: str(patch.status || eventRow.status) };
+  return withLock(function () {
+    const patch = { deadline: deadline };
+    if (str(eventRow.status) === 'closed' && (!deadline || new Date(deadline).getTime() > Date.now())) {
+      patch.status = 'open';
+    }
+    patchEvent(eventRow, patch);
+    return { updated: true, status: str(patch.status || eventRow.status) };
+  });
 }
 
 /** 立即提前結束投票（主管理者） */
@@ -740,26 +760,30 @@ function apiCloseEvent(params) {
   const user = requireUser(params);
   const eventRow = findEvent(params.eventId);
   requireRole(eventRow, user.email, ['owner'], '只有主管理者可以提前結束投票');
-  patchEvent(eventRow, { status: 'closed' });
-  return { closed: true };
+  return withLock(function () {
+    patchEvent(eventRow, { status: 'closed' });
+    return { closed: true };
+  });
 }
 function apiManageCoAdmins(params) {
   const user = requireUser(params);
   const eventRow = findEvent(params.eventId);
   requireRole(eventRow, user.email, ['owner'], '只有主管理者可以指定次管理者');
-  const current = str(eventRow.co_admin_emails).split(',').map(normEmail).filter(Boolean);
-  (params.add || []).forEach(function (e) {
-    const em = normEmail(e);
-    if (!em || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) fail('BAD_REQUEST', 'Email 格式不正確：' + e);
-    if (em === normEmail(eventRow.admin_email)) return;
-    if (current.indexOf(em) < 0) current.push(em);
+  return withLock(function () {
+    const current = str(eventRow.co_admin_emails).split(',').map(normEmail).filter(Boolean);
+    (params.add || []).forEach(function (e) {
+      const em = normEmail(e);
+      if (!em || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) fail('BAD_REQUEST', 'Email 格式不正確：' + e);
+      if (em === normEmail(eventRow.admin_email)) return;
+      if (current.indexOf(em) < 0) current.push(em);
+    });
+    (params.remove || []).forEach(function (e) {
+      const idx = current.indexOf(normEmail(e));
+      if (idx >= 0) current.splice(idx, 1);
+    });
+    patchEvent(eventRow, { co_admin_emails: current.join(',') });
+    return { coAdminEmails: current };
   });
-  (params.remove || []).forEach(function (e) {
-    const idx = current.indexOf(normEmail(e));
-    if (idx >= 0) current.splice(idx, 1);
-  });
-  patchEvent(eventRow, { co_admin_emails: current.join(',') });
-  return { coAdminEmails: current };
 }
 
 /** 標記最終確定方案（主管理者）；dateId/placeId 可傳空字串代表不指定 */
@@ -774,8 +798,10 @@ function apiConfirmResult(params) {
   }).map(function (o) { return str(o.option_id); });
   if (dateId && validIds.indexOf(dateId) < 0) fail('BAD_OPTION', '指定的日期選項不存在');
   if (placeId && validIds.indexOf(placeId) < 0) fail('BAD_OPTION', '指定的地點選項不存在');
-  patchEvent(eventRow, { confirmed_date_id: dateId, confirmed_place_id: placeId, status: 'confirmed' });
-  return { confirmed: true };
+  return withLock(function () {
+    patchEvent(eventRow, { confirmed_date_id: dateId, confirmed_place_id: placeId, status: 'confirmed' });
+    return { confirmed: true };
+  });
 }
 
 /** 刪除整場活動（軟刪，主管理者） */
@@ -783,9 +809,11 @@ function apiDeleteEvent(params) {
   const user = requireUser(params);
   const eventRow = findEvent(params.eventId);
   requireRole(eventRow, user.email, ['owner'], '只有主管理者可以刪除活動');
-  patchEvent(eventRow, { status: 'deleted' });
-  CacheService.getScriptCache().remove('ver_' + eventRow.event_id);
-  return { deleted: true };
+  return withLock(function () {
+    patchEvent(eventRow, { status: 'deleted' });
+    CacheService.getScriptCache().remove('ver_' + eventRow.event_id);
+    return { deleted: true };
+  });
 }
 
 // ===================== API：匯出 CSV =====================
