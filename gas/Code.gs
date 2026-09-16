@@ -141,9 +141,13 @@ function readTable(name) {
 }
 function appendRow(name, obj) {
   const headers = HEADERS[name];
-  getSs().getSheetByName(name).appendRow(headers.map(function (h) {
+  const sh = getSs().getSheetByName(name);
+  const rowValues = headers.map(function (h) {
     return obj[h] !== undefined ? obj[h] : '';
-  }));
+  });
+  // 注意：Sheet.appendRow() 即使欄位已鎖純文字格式，仍會自動把像日期的字串轉成 Date，
+  // 改用 Range.setValues() 寫入才會遵守 setup() 設定的純文字格式（跟 updateRowCells 一致）
+  sh.getRange(sh.getLastRow() + 1, 1, 1, rowValues.length).setValues([rowValues]);
 }
 function updateRowCells(name, rowIndex, patch) {
   const sh = getSs().getSheetByName(name);
