@@ -347,6 +347,7 @@
     <a href="#step-b" data-nav>B · Apps Script 後端</a>
     <a href="#step-c" data-nav>C · 設定前端</a>
     <a href="#step-d" data-nav>D · GitHub Pages</a>
+    <a href="#step-e" data-nav>E · 發布正式版（可選）</a>
     <a href="#verify" data-nav>驗收測試清單</a>
     <span class="group-label">使用手冊</span>
     <a href="#roles" data-nav>主揪 / 參與者 / 次管理者</a>
@@ -377,17 +378,19 @@
       <div class="step">
         <ol>
           <li>前往 <span class="mono">Google Cloud Console</span> → 建立新專案（名稱隨意，例如 <code class="inline">jioka</code>）</li>
-          <li>左側選單「API 和服務」→「<strong>OAuth 同意畫面</strong>」
+          <li>左側選單找「<strong>Google Auth Platform</strong>」（新版介面把「API 和服務 → OAuth 同意畫面」整合到這裡了）→「總覽」頁面點「<strong>開始</strong>」跑設定精靈
             <div class="sub">
-              · 使用者類型選「External」→ 建立<br>
-              · 填應用程式名稱（例如「揪咖 JioKa」）、支援 Email、開發人員聯絡 Email<br>
-              · 其餘頁面直接「儲存並繼續」到底：不用加 scopes、不用送審。測試階段只有你加入的測試使用者能登入
+              · 應用程式資訊：名稱填「揪咖 JioKa」、支援 Email 選自己的<br>
+              · 目標對象：選「<strong>外部 External</strong>」<br>
+              · 聯絡資訊：填開發人員聯絡 Email → 完成建立<br>
+              · 完成後預設是「測試 Testing」狀態，只有你加入的測試使用者能登入 —— 要開放任何人登入見下方 <strong>步驟 E</strong>
             </div>
           </li>
-          <li>「憑證」→「建立憑證」→「<strong>OAuth 用戶端 ID</strong>」
+          <li>左側選單「<strong>用戶端</strong>」→「<strong>建立 OAuth 用戶端</strong>」
             <div class="sub">
               · 應用程式類型：網頁應用程式<br>
-              · 已授權的 JavaScript 來源加入：<code class="inline">https://&lt;你的帳號&gt;.github.io</code>（不要加結尾斜線）與（可選）<code class="inline">http://localhost:8000</code>
+              · 已授權的 JavaScript 來源加入：<code class="inline">https://&lt;你的帳號&gt;.github.io</code>（不要加結尾斜線）與（可選）<code class="inline">http://localhost:8000</code><br>
+              · 已授權的重新導向 URI 不用填（本專案走 Google Identity Services 的 ID token 流程，不用 redirect）
             </div>
           </li>
           <li>建立後複製「用戶端 ID」，格式像 <code class="inline">123456789-xxxx.apps.googleusercontent.com</code> —— 步驟 B、C 都要用到</li>
@@ -447,6 +450,25 @@
           <li>等 1～2 分鐘，開啟 <code class="inline">https://&lt;你的帳號&gt;.github.io/jioka/</code>（repo 名稱不是 <code class="inline">jioka</code> 的話路徑會不同）</li>
         </ol>
         <div class="field-note warn">如果實際網域跟步驟 A 填的不一樣（例如自訂網域），記得回 Cloud Console 把正確網域補進「已授權的 JavaScript 來源」，不然登入按鈕會失敗。</div>
+      </div>
+    </section>
+
+    <section id="step-e">
+      <h2><span class="num">E</span>發布正式版，讓任何人都能登入</h2>
+      <p class="lead">可選步驟。步驟 A 建立的 OAuth 應用程式預設是「測試」狀態，只有你手動加入的測試使用者能登入；要把連結分享給朋友、任何人都能發起自己的揪咖，需要發布成正式版。</p>
+      <div class="step">
+        <ol>
+          <li>Cloud Console →「Google Auth Platform」→「<strong>品牌</strong>」，把必填欄位補齊（沒填完「發布應用程式」按鈕會是灰的）
+            <div class="sub">
+              · 應用程式首頁：填 GitHub Pages 網址，例如 <code class="inline">https://&lt;你的帳號&gt;.github.io/jioka/</code><br>
+              · 應用程式隱私權政策連結、服務條款連結：沒有專門文件的話可以先填同一個首頁網址<br>
+              · 已授權網域：確認有 <code class="inline">&lt;你的帳號&gt;.github.io</code>
+            </div>
+          </li>
+          <li>回「<strong>目標對象</strong>」頁面，「發布狀態」應該已經可以點「<strong>發布應用程式</strong>」→ 確認發布</li>
+          <li>發布狀態變成「<strong>實際運作中 In production</strong>」即完成；本工具只要求 email/profile 基本範圍，<strong>不需要送 Google 審核</strong></li>
+        </ol>
+        <div class="field-note">之後任何人打開你的 GitHub Pages 網址，都能用自己的 Google 帳號登入、發起自己的揪咖活動 —— 資料一樣存進你的試算表，用 <code class="inline">event_id</code> 互相區隔，不會互相干擾。</div>
       </div>
     </section>
 
@@ -530,7 +552,7 @@
       </details>
       <details>
         <summary>任何人都能用我的揪咖嗎？</summary>
-        <p>OAuth 同意畫面若是「測試」狀態，只有你加入的測試使用者能登入。要開放所有人：Cloud Console →「目標對象」→「發布應用程式」（如果按鈕是灰的，先去「品牌」頁面把應用程式首頁/隱私權政策/服務條款連結等必填欄位補齊）。本工具只取 email/profile 基本範圍，通常無需人工審核，發布狀態顯示「實際運作中」即代表任何人都能登入使用。</p>
+        <p>OAuth 同意畫面若是「測試」狀態，只有你加入的測試使用者能登入；要開放給任何人，照 <a href="#step-e">步驟 E</a> 發布成正式版即可，通常無需人工審核。</p>
       </details>
       <details>
         <summary>Google ID token 過期怎麼辦？</summary>

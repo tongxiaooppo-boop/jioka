@@ -56,23 +56,26 @@ jioka/
 
 ---
 
-# 🚀 部署教學（約 15 分鐘）
+# 🚀 部署教學（約 15 分鐘，含開放給任何人登入約 20 分鐘）
 
 > 只需要一個 Google 帳號 + 一個 GitHub 帳號，全部免費。
 
 ## 步驟 A：申請 Google OAuth Client ID（約 5 分鐘）
 
 1. 前往 [Google Cloud Console](https://console.cloud.google.com/)，建立新專案（名稱隨意，例如 `jioka`）
-2. 左側選單 →「API 和服務」→「**OAuth 同意畫面**」
-   - 類型選「**External**」→ 建立
-   - 填寫應用程式名稱（例如「揪咖 JioKa」）、使用者支援電子郵件（選自己的）、開發人員聯絡資訊（填自己的 Email）
-   - 其餘頁面直接「儲存並繼續」到底（不需要加 scopes、不需要提交審核；測試階段只有自己與你加入的測試使用者能登入，若要让任何人登入請看下方 FAQ）
-3. 「**憑證**」→「建立憑證」→「**OAuth 用戶端 ID**」
+2. 左側選單找「**Google Auth Platform**」（新版介面把「API 和服務 → OAuth 同意畫面」整合到這裡了）→「總覽」頁面點「**開始**」，跑設定精靈：
+   - **應用程式資訊**：應用程式名稱填「揪咖 JioKa」，使用者支援電子郵件選自己的
+   - **目標對象**：選「**外部 (External)**」
+   - **聯絡資訊**：填自己的開發人員聯絡 Email
+   - **完成**：勾選同意條款 → 建立
+   - 完成後預設是「**測試 (Testing)**」狀態，只有你加進「測試使用者」名單的帳號能登入；要開放任何人登入請看下方**步驟 E**
+3. 左側選單「**用戶端**」→「**建立 OAuth 用戶端**」
    - 應用程式類型：**網頁應用程式**
    - 名稱：隨意（例如 `jioka-web`）
    - 「**已授權的 JavaScript 來源**」加入：
      - `https://<你的帳號>.github.io`（GitHub Pages 網域，**不要加斜線結尾**）
      - `http://localhost:8000`（本機測試用，可選）
+   - 「已授權的重新導向 URI」不用填（本專案用 Google Identity Services 的 ID token 流程，不走 redirect）
 4. 建立後複製「**用戶端 ID**」，長得像 `123456789-xxxx.apps.googleusercontent.com`
 
 ## 步驟 B：建立 Apps Script 後端（約 5 分鐘）
@@ -116,6 +119,18 @@ const JIOKA_CONFIG = {
    - Branch：`main`，資料夾選「**/docs**」→ Save
 3. 等 1–2 分鐘，開啟 `https://<你的帳號>.github.io/jioka/`（repo 名稱不是 jioka 的話路徑會不同）
 4. 如果 GitHub Pages 網域跟步驟 A 設的不一樣（例如自訂網域），記得回 Cloud Console 把正確網域加進「已授權的 JavaScript 來源」
+
+## 步驟 E：發布正式版，讓任何人都能登入（約 2 分鐘，可選）
+
+步驟 A 建立的 OAuth 應用程式預設是「測試」狀態，只有你手動加入的測試使用者能用 Google 登入；要分享給朋友、任何人都能發起揪咖，需要發布成正式版：
+
+1. Cloud Console →「Google Auth Platform」→「**品牌**」，把必填欄位補齊（沒填完「發布應用程式」按鈕會是灰的）：
+   - 應用程式首頁：填 GitHub Pages 網址，例如 `https://<你的帳號>.github.io/jioka/`
+   - 應用程式隱私權政策連結、服務條款連結：沒有專門文件的話，暫時也可以先填同一個首頁網址
+   - 已授權網域：確認有 `<你的帳號>.github.io`
+2. 回「**目標對象**」頁面，「發布狀態」應該已經可以點「**發布應用程式**」→ 確認發布
+3. 發布狀態變成「**實際運作中 (In production)**」即完成；本工具只要求 email/profile 這種基本範圍，**不需要送 Google 審核**
+4. 之後任何人打開你的 GitHub Pages 網址，都能用自己的 Google 帳號登入、發起自己的揪咖活動（資料一樣存進你的試算表，用 `event_id` 互相區隔）
 
 ## ✅ 驗收測試清單
 
@@ -208,7 +223,7 @@ Apps Script 的 `/exec` 網址是「部署快照」：每次改程式都要到�
 檢查 Cloud Console 的「已授權的 JavaScript 來源」是否包含你**實際開啟**的網域（`https://xxx.github.io`，注意大小寫與有無尾斜線）。Client ID 前後端兩處要填同一組。
 
 **Q：任何人都能用我的揪咖嗎？**
-OAuth 同意畫面若是「測試」狀態，只有你加入的測試使用者能登入。要開放所有人：Cloud Console →「OAuth 同意畫面」→「**發佈應用程式**」（本工具只取 email/profile 基本範圍，通常無需人工審核即可發佈）。
+OAuth 同意畫面若是「測試」狀態，只有你加入的測試使用者能登入；要開放給任何人，照上面**步驟 E** 發布成正式版即可。
 
 **Q：token 過期怎麼辦？**
 Google ID token 效期 1 小時，過期後操作會提示重新登入，再點一次登入按鈕即可，投票資料不會遺失。
