@@ -421,6 +421,7 @@
           </li>
         </ol>
         <div class="field-note">修改 <code class="inline">Code.gs</code> 之後前端沒反應？<code class="inline">/exec</code> 網址是「部署快照」，改完程式要回「管理部署作業」選「新版本」重新部署才會生效。</div>
+        <div class="field-note warn">開發者注意：<code class="inline">Sheet.appendRow()</code> 就算欄位已鎖純文字格式，仍會自動把像日期的字串轉成 <code class="inline">Date</code> 物件（<code class="inline">Range.setValues()</code>/<code class="inline">setValue()</code> 才會正確遵守文字格式）。<code class="inline">Code.gs</code> 的 <code class="inline">appendRow()</code> 輔助函式已改用 <code class="inline">setValues()</code> 寫入，之後新增寫入邏輯請沿用這個 helper，不要直接呼叫 <code class="inline">sh.appendRow()</code>。</div>
       </div>
     </section>
 
@@ -529,7 +530,7 @@
       </details>
       <details>
         <summary>任何人都能用我的揪咖嗎？</summary>
-        <p>OAuth 同意畫面若是「測試」狀態，只有你加入的測試使用者能登入。要開放所有人：Cloud Console →「OAuth 同意畫面」→「發佈應用程式」；本工具只取 email/profile 基本範圍，通常無需人工審核即可發佈。</p>
+        <p>OAuth 同意畫面若是「測試」狀態，只有你加入的測試使用者能登入。要開放所有人：Cloud Console →「目標對象」→「發布應用程式」（如果按鈕是灰的，先去「品牌」頁面把應用程式首頁/隱私權政策/服務條款連結等必填欄位補齊）。本工具只取 email/profile 基本範圍，通常無需人工審核，發布狀態顯示「實際運作中」即代表任何人都能登入使用。</p>
       </details>
       <details>
         <summary>Google ID token 過期怎麼辦？</summary>

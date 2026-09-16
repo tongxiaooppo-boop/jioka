@@ -35,6 +35,7 @@
 - 前端無框架、無建置步驟，改完推上 GitHub 即生效
 - 後端以 `LockService` 防止併發覆寫、`CacheService` 快取 token 驗證與版本號，保護每日執行配額
 - 所有寫入操作都經過後端權限檢查，前端不持有試算表任何權限
+- ⚠️ **開發注意**：`Sheet.appendRow()` 就算該欄已鎖純文字格式，仍會自動把看起來像日期的字串轉成 `Date` 物件（跟 `Range.setValues()`/`setValue()` 行為不同，這兩個會正確遵守文字格式）。所以 `Code.gs` 的 `appendRow()` 輔助函式改用 `getRange(...).setValues([...])` 寫入新列，之後若要新增寫入邏輯請沿用這個 helper，不要直接呼叫 `sh.appendRow()`。
 
 ## 📁 專案結構
 
