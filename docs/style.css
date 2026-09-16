@@ -154,10 +154,10 @@ body {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   font-weight: 700; font-size: 15px; position: relative; cursor: default;
 }
-.cal-day.candidate { cursor: pointer; transition: transform 0.08s ease; }
+.cal-day.candidate { cursor: pointer; transition: transform 0.08s ease; border-style: dashed; border-color: var(--orange); }
 .cal-day.candidate:hover { transform: scale(1.1); }
-.cal-day.heat-some { background: var(--yellow-pale); }
-.cal-day.heat-half { background: var(--orange); color: #fff; }
+.cal-day.heat-some { background: var(--yellow-pale); border-style: solid; }
+.cal-day.heat-half { background: var(--orange); color: #fff; border-style: solid; }
 .cal-day.mine { border-color: var(--pink); border-width: 4px; }
 .cal-day.today { box-shadow: 0 0 0 3px var(--mint); }
 .cal-day.other-month { opacity: 0.25; border-width: 2px; font-size: 13px; }
