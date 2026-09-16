@@ -117,6 +117,11 @@ function genId(len) {
 }
 function str(v) { return (v === null || v === undefined) ? '' : String(v); }
 function normEmail(v) { return str(v).trim().toLowerCase(); }
+/** 只允許 http/https 開頭的連結，擋掉 javascript: 等會在前端被當連結渲染執行的 scheme */
+function safeHttpUrl(v) {
+  const s = str(v).trim();
+  return /^https?:\/\//i.test(s) ? s : '';
+}
 // ===================== 試算表存取層（Repository） =====================
 let _ss = null;
 function getSs() {
@@ -145,9 +150,18 @@ function appendRow(name, obj) {
   const rowValues = headers.map(function (h) {
     return obj[h] !== undefined ? obj[h] : '';
   });
+  const row = sh.getLastRow() + 1;
+  // Sheet.appendRow() 用盡列數時會自動擴列，改用 getRange() 寫入則不會，超出範圍要自己擴
+  if (row > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), 500);
+  // 逐列鎖定純文字格式再寫值：不依賴 setup() 當時 getMaxRows() 涵蓋的範圍，
+  // 否則列數超過 setup() 執行當下的範圍後，日期字串又會被自動轉成 Date（見 appendRow 的既有 bug 記錄）
+  (TEXT_COLUMNS[name] || []).forEach(function (col) {
+    const idx = headers.indexOf(col);
+    if (idx >= 0) sh.getRange(row, idx + 1).setNumberFormat('@');
+  });
   // 注意：Sheet.appendRow() 即使欄位已鎖純文字格式，仍會自動把像日期的字串轉成 Date，
-  // 改用 Range.setValues() 寫入才會遵守 setup() 設定的純文字格式（跟 updateRowCells 一致）
-  sh.getRange(sh.getLastRow() + 1, 1, 1, rowValues.length).setValues([rowValues]);
+  // 改用 Range.setValues() 寫入才會遵守純文字格式（跟 updateRowCells 一致）
+  sh.getRange(row, 1, 1, rowValues.length).setValues([rowValues]);
 }
 function updateRowCells(name, rowIndex, patch) {
   const sh = getSs().getSheetByName(name);
@@ -175,8 +189,13 @@ function verifyToken(idToken) {
     { muteHttpExceptions: true });
   if (resp.getResponseCode() !== 200) fail('INVALID_TOKEN', '登入憑證無效或已過期，請重新登入');
   const info = JSON.parse(resp.getContentText());
-  if (GOOGLE_CLIENT_ID.indexOf('YOUR_') !== 0 && info.aud !== GOOGLE_CLIENT_ID) {
-    fail('INVALID_TOKEN', '憑證來源不符（aud 驗證失敗）');
+  // 注意：GOOGLE_CLIENT_ID 若還是預留值就直接擋掉，不能靜默跳過 aud 驗證
+  // （沒設定值卻放行等於任何第三方 OAuth 應用程式核發的 token 都能拿來冒充使用者）
+  if (GOOGLE_CLIENT_ID.indexOf('YOUR_') === 0) fail('INTERNAL', '後端尚未設定 GOOGLE_CLIENT_ID，請先在 Code.gs 填入正式值');
+  if (info.aud !== GOOGLE_CLIENT_ID) fail('INVALID_TOKEN', '憑證來源不符（aud 驗證失敗）');
+  if (str(info.email_verified) !== 'true') fail('INVALID_TOKEN', 'Email 尚未通過 Google 驗證');
+  if (info.iss !== 'accounts.google.com' && info.iss !== 'https://accounts.google.com') {
+    fail('INVALID_TOKEN', '憑證簽發者不符');
   }
   const user = { email: normEmail(info.email), name: str(info.name || info.email) };
   if (!user.email) fail('INVALID_TOKEN', '無法從憑證取得 Email');
@@ -309,8 +328,10 @@ function buildEventPayload(eventRow, user, ver) {
 
   const myEmail = user ? user.email : null;
   const meP = myEmail ? getParticipant(participants, myEmail) : null;
+  // 只回還存在（未被軟刪）的選項，避免管理者刪掉某個有人投過的選項後，
+  // 該使用者下次送出投票時因為帶著已刪除的舊票被後端整批拒絕（BAD_OPTION），從此卡住無法再改票
   const myVotes = myEmail ? votes.filter(function (v) {
-    return normEmail(v.user_email) === myEmail;
+    return normEmail(v.user_email) === myEmail && !!optById[str(v.option_id)];
   }).map(function (v) { return str(v.option_id); }) : [];
 
   const cmtList = comments.map(function (c) {
@@ -407,7 +428,7 @@ function apiCreateEvent(params) {
       appendRow('Options', {
         option_id: genId(12), event_id: eventId, option_type: 'place',
         date: '', time_slot: '', place_name: name.substring(0, 50),
-        map_link: str(p.mapLink).trim().substring(0, 300),
+        map_link: safeHttpUrl(p.mapLink).substring(0, 300),
         created_by: user.email, created_at: now, is_deleted: false,
       });
     });
@@ -494,7 +515,7 @@ function apiSubmitVotes(params) {
   const user = requireUser(params);
   const eventRow = findEvent(params.eventId);
   if (!isVotingOpen(eventRow)) fail('EVENT_CLOSED', '投票已截止，無法再修改');
-  const optionIds = (params.optionIds || []).map(str);
+  let optionIds = (params.optionIds || []).map(str);
   return withLock(function () {
     const participants = readTable('Participants').filter(function (p) {
       return str(p.event_id) === str(eventRow.event_id);
@@ -504,9 +525,9 @@ function apiSubmitVotes(params) {
     const validIds = readTable('Options').filter(function (o) {
       return str(o.event_id) === str(eventRow.event_id) && !isDel(o);
     }).map(function (o) { return str(o.option_id); });
-    optionIds.forEach(function (oid) {
-      if (validIds.indexOf(oid) < 0) fail('BAD_OPTION', '包含無效或已刪除的選項');
-    });
+    // 靜默濾掉已被刪除/不存在的選項 id，不整批 fail —— 避免選項被管理者刪除後，
+    // 曾投過票的使用者的 myVotes 仍帶著舊 id，下次改票時被卡死（見 H3 修法）
+    optionIds = optionIds.filter(function (oid) { return validIds.indexOf(oid) >= 0; });
     // 覆蓋式更新：刪掉我的舊票，寫入新票（由後往前刪避免位移）
     const sh = getSs().getSheetByName('Votes');
     const all = sh.getDataRange().getValues();
@@ -570,7 +591,7 @@ function apiAddOption(params) {
       appendRow('Options', {
         option_id: genId(12), event_id: eventRow.event_id, option_type: 'place',
         date: '', time_slot: '', place_name: name,
-        map_link: str(params.mapLink).trim().substring(0, 300),
+        map_link: safeHttpUrl(params.mapLink).substring(0, 300),
         created_by: user.email, created_at: now, is_deleted: false,
       });
     }
